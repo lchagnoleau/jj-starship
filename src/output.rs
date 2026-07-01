@@ -36,15 +36,14 @@ fn format_change_id(change_id: &str, prefix_len: usize, show_prefix_color: bool)
 }
 
 /// Format JJ info as prompt string
-/// Pattern: `on {symbol}{change_id} ({bookmarks}) [{status}]`
+/// Pattern: `{symbol}{change_id} ({bookmarks}) [{status}]`
 #[must_use = "returns formatted string, does not print"]
 pub fn format_jj(info: &JjInfo, config: &Config) -> String {
     let mut out = String::with_capacity(128);
     let display = &config.jj_display;
 
-    // "on {symbol}" prefix
+    // "{symbol}" prefix
     if display.show_prefix {
-        out.push_str("on ");
         out.push_str(&format_segment(&config.jj_symbol, BLUE, display.show_color));
     }
 
@@ -128,16 +127,15 @@ pub fn format_jj(info: &JjInfo, config: &Config) -> String {
 }
 
 /// Format Git info as prompt string
-/// Pattern: `on {symbol}{name} ({id}) [{status}]`
+/// Pattern: `{symbol}{name} ({id}) [{status}]`
 #[cfg(feature = "git")]
 #[must_use = "returns formatted string, does not print"]
 pub fn format_git(info: &GitInfo, config: &Config) -> String {
     let mut out = String::with_capacity(128);
     let display = &config.git_display;
 
-    // "on {symbol}" prefix
+    // "{symbol}" prefix
     if display.show_prefix {
-        out.push_str("on ");
         out.push_str(&format_segment(
             &config.git_symbol,
             BLUE,
