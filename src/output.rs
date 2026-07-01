@@ -36,15 +36,14 @@ fn format_change_id(change_id: &str, prefix_len: usize, show_prefix_color: bool)
 }
 
 /// Format JJ info as prompt string
-/// Pattern: `on {symbol}{change_id} ({bookmarks}) [{status}]`
+/// Pattern: `{symbol}{change_id} ({bookmarks}) [{status}]`
 #[must_use = "returns formatted string, does not print"]
 pub fn format_jj(info: &JjInfo, config: &Config) -> String {
     let mut out = String::with_capacity(128);
     let display = &config.jj_display;
 
-    // "on {symbol}" prefix
+    // "{symbol}" prefix
     if display.show_prefix {
-        out.push_str("on ");
         out.push_str(&format_segment(&config.jj_symbol, BLUE, display.show_color));
     }
 
@@ -117,10 +116,9 @@ pub fn format_jj(info: &JjInfo, config: &Config) -> String {
             if !out.is_empty() {
                 out.push(' ');
             }
-            let status_text = format!("[{}]", &status);
             // Use yellow if status is only ∅, otherwise red
             let color = if status == "∅" { YELLOW } else { RED };
-            out.push_str(&format_segment(&status_text, color, display.show_color));
+            out.push_str(&format_segment(&status, color, display.show_color));
         }
     }
 
@@ -128,16 +126,15 @@ pub fn format_jj(info: &JjInfo, config: &Config) -> String {
 }
 
 /// Format Git info as prompt string
-/// Pattern: `on {symbol}{name} ({id}) [{status}]`
+/// Pattern: `{symbol}{name} ({id}) [{status}]`
 #[cfg(feature = "git")]
 #[must_use = "returns formatted string, does not print"]
 pub fn format_git(info: &GitInfo, config: &Config) -> String {
     let mut out = String::with_capacity(128);
     let display = &config.git_display;
 
-    // "on {symbol}" prefix
+    // "{symbol}" prefix
     if display.show_prefix {
-        out.push_str("on ");
         out.push_str(&format_segment(
             &config.git_symbol,
             BLUE,
@@ -169,35 +166,38 @@ pub fn format_git(info: &GitInfo, config: &Config) -> String {
 
         // File status (order: = > + > ! > ? > ✘)
         if info.conflicted > 0 {
-            status.push('=');
+            let _ = write!(status, "={} ", info.conflicted);
         }
         if info.staged > 0 {
-            status.push('+');
+            let _ = write!(status, "+{} ", info.staged);
         }
         if info.modified > 0 {
-            status.push('!');
+            let _ = write!(status, "!{} ", info.modified);
         }
         if info.untracked > 0 {
-            status.push('?');
+            let _ = write!(status, "?{} ", info.untracked);
         }
         if info.deleted > 0 {
-            status.push('✘');
+            let _ = write!(status, "✘{} ", info.deleted);
         }
 
         // Ahead/behind
         if info.ahead > 0 {
-            let _ = write!(status, "⇡{}", info.ahead);
+            let _ = write!(status, "⇡{} ", info.ahead);
         }
         if info.behind > 0 {
-            let _ = write!(status, "⇣{}", info.behind);
+            let _ = write!(status, "⇣{} ", info.behind);
         }
 
         if !status.is_empty() {
             if !out.is_empty() {
                 out.push(' ');
             }
-            let status_text = format!("[{}]", &status);
-            out.push_str(&format_segment(&status_text, RED, display.show_color));
+            out.push_str(&format_segment(
+                status.trim_end_matches(' '),
+                RED,
+                display.show_color,
+            ));
         }
     }
 
@@ -250,7 +250,7 @@ mod tests {
         assert_eq!(
             format_jj(&info, &no_symbol_config()),
             format!(
-                "on {BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(main){RESET}"
+                "{BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(main){RESET}"
             )
         );
     }
@@ -272,7 +272,7 @@ mod tests {
         assert_eq!(
             format_jj(&info, &no_symbol_config()),
             format!(
-                "on {BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {RED}[!∅]{RESET}"
+                "{BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {RED}!∅{RESET}"
             )
         );
     }
@@ -293,7 +293,7 @@ mod tests {
         assert_eq!(
             format_jj(&info, &default_config()),
             format!(
-                "on {BLUE}{DEFAULT_JJ_SYMBOL}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(main){RESET}"
+                "{BLUE}{DEFAULT_JJ_SYMBOL}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(main){RESET}"
             )
         );
     }
@@ -325,7 +325,7 @@ mod tests {
         assert_eq!(
             format_jj(&info, &config),
             format!(
-                "on {BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(very…){RESET}"
+                "{BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(very…){RESET}"
             )
         );
     }
@@ -346,7 +346,7 @@ mod tests {
         assert_eq!(
             format_jj(&info, &no_symbol_config()),
             format!(
-                "on {BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(main~3){RESET}"
+                "{BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(main~3){RESET}"
             )
         );
     }
@@ -366,7 +366,7 @@ mod tests {
         };
         assert_eq!(
             format_jj(&info, &no_symbol_config()),
-            format!("on {BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET}")
+            format!("{BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET}")
         );
     }
 
@@ -386,7 +386,7 @@ mod tests {
         assert_eq!(
             format_jj(&info, &no_symbol_config()),
             format!(
-                "on {BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(feature~1, main~2){RESET}"
+                "{BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(feature~1, main~2){RESET}"
             )
         );
     }
@@ -422,7 +422,7 @@ mod tests {
             },
             git_display: DisplayConfig::all_visible(),
         };
-        assert_eq!(format_jj(&info, &config), "on 󱗆 yzxv1234 (main)");
+        assert_eq!(format_jj(&info, &config), "󱗆 yzxv1234 (main)");
     }
 
     #[test]
@@ -459,7 +459,7 @@ mod tests {
         // --no-jj-id hides change_id, shows only bookmarks
         assert_eq!(
             format_jj(&info, &config),
-            format!("on {BLUE}{RESET} {GREEN}(main){RESET}")
+            format!("{BLUE}{RESET} {GREEN}(main){RESET}")
         );
     }
 
@@ -497,7 +497,7 @@ mod tests {
         // --no-jj-name hides bookmarks, shows only change_id with prefix coloring
         assert_eq!(
             format_jj(&info, &config),
-            format!("on {BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET}")
+            format!("{BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET}")
         );
     }
 
@@ -517,7 +517,7 @@ mod tests {
         };
         assert_eq!(
             format_jj(&info, &no_symbol_config()),
-            format!("on {BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET}")
+            format!("{BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET}")
         );
     }
 
@@ -538,7 +538,7 @@ mod tests {
         assert_eq!(
             format_jj(&info, &no_symbol_config()),
             format!(
-                "on {BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {YELLOW}[∅]{RESET}"
+                "{BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {YELLOW}∅{RESET}"
             )
         );
     }
@@ -550,7 +550,7 @@ mod tests {
         let info = JjInfo {
             change_id: "yzxv1234".into(),
             change_id_prefix_len: 4,
-            bookmarks: vec![("main".into(), 0)], // distance 0 = directly on WC
+            bookmarks: vec![("main".into(), 0)], // distance 0 = directly WC
             empty_desc: false,
             empty_commit: false,
             conflict: false,
@@ -561,7 +561,7 @@ mod tests {
         assert_eq!(
             format_jj(&info, &no_symbol_config()),
             format!(
-                "on {BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(main){RESET}"
+                "{BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(main){RESET}"
             )
         );
     }
@@ -582,7 +582,7 @@ mod tests {
         };
         assert_eq!(
             format_git(&info, &no_symbol_config()),
-            format!("on {BLUE}{RESET}{PURPLE}main{RESET} {GREEN}(a3b4c5d){RESET}")
+            format!("{BLUE}{RESET}{PURPLE}main{RESET} {GREEN}(a3b4c5d){RESET}")
         );
     }
 
@@ -603,7 +603,7 @@ mod tests {
         assert_eq!(
             format_git(&info, &no_symbol_config()),
             format!(
-                "on {BLUE}{RESET}{PURPLE}feature{RESET} {GREEN}(1234567){RESET} {RED}[+!?⇡2⇣1]{RESET}"
+                "{BLUE}{RESET}{PURPLE}feature{RESET} {GREEN}(1234567){RESET} {RED}+2 !3 ?1 ⇡2 ⇣1{RESET}"
             )
         );
     }
@@ -624,9 +624,7 @@ mod tests {
         };
         assert_eq!(
             format_git(&info, &default_config()),
-            format!(
-                "on {BLUE}{DEFAULT_GIT_SYMBOL}{RESET}{PURPLE}main{RESET} {GREEN}(a3b4c5d){RESET}"
-            )
+            format!("{BLUE}{DEFAULT_GIT_SYMBOL}{RESET}{PURPLE}main{RESET} {GREEN}(a3b4c5d){RESET}")
         );
     }
 
@@ -663,7 +661,7 @@ mod tests {
         assert_eq!(
             format_jj(&info, &config),
             format!(
-                "on {BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(main, feat/foo~1, …+3){RESET}"
+                "{BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(main, feat/foo~1, …+3){RESET}"
             )
         );
     }
@@ -696,7 +694,7 @@ mod tests {
         assert_eq!(
             format_jj(&info, &config),
             format!(
-                "on {BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(main, feat~1){RESET}"
+                "{BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(main, feat~1){RESET}"
             )
         );
     }
@@ -734,7 +732,7 @@ mod tests {
         assert_eq!(
             format_jj(&info, &config),
             format!(
-                "on {BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(a, b~1, c~2, d~3){RESET}"
+                "{BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(a, b~1, c~2, d~3){RESET}"
             )
         );
     }
@@ -766,7 +764,7 @@ mod tests {
         assert_eq!(
             format_jj(&info, &config),
             format!(
-                "on {BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(main, …+2){RESET}"
+                "{BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(main, …+2){RESET}"
             )
         );
     }
@@ -802,7 +800,7 @@ mod tests {
         assert_eq!(
             format_jj(&info, &config),
             format!(
-                "on {BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(feat-x, fix-y~1, staging~2){RESET}"
+                "{BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(feat-x, fix-y~1, staging~2){RESET}"
             )
         );
     }
@@ -838,7 +836,7 @@ mod tests {
         assert_eq!(
             format_jj(&info, &config),
             format!(
-                "on {BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(feat-x, fix-y~1, staging~2){RESET}"
+                "{BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(feat-x, fix-y~1, staging~2){RESET}"
             )
         );
     }
@@ -872,7 +870,7 @@ mod tests {
         assert_eq!(
             format_jj(&info, &config),
             format!(
-                "on {BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(very-long…){RESET}"
+                "{BLUE}{RESET}{BRIGHT_MAGENTA}yzxv{RESET}{BRIGHT_BLACK}1234{RESET} {GREEN}(very-long…){RESET}"
             )
         );
     }
